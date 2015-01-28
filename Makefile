@@ -6,7 +6,7 @@ BE_CFLAGS =
 BE_LDFLAGS =
 BE_LDADD =
 BE_DEPS =
-OBJS = auth-plug.o base64.o pbkdf2-check.o log.o hash.o be-psk.o backends.o cache.o
+OBJS = auth-plug.o base64.o log.o hash.o be-psk.o backends.o cache.o
 
 BACKENDS =
 BACKENDSTR =
@@ -114,7 +114,6 @@ be-cdb.o: be-cdb.c be-cdb.h Makefile
 be-mysql.o: be-mysql.c be-mysql.h Makefile
 be-ldap.o: be-ldap.c be-ldap.h Makefile
 be-sqlite.o: be-sqlite.c be-sqlite.h Makefile
-pbkdf2-check.o: pbkdf2-check.c base64.h Makefile
 base64.o: base64.c base64.h Makefile
 log.o: log.c log.h Makefile
 hash.o: hash.c hash.h uthash.h Makefile

@@ -44,7 +44,7 @@ plugin as `auth_opt_anonusername` and they
 are handled by a so-called _fallback back-end_ which is the *first* configured
 back-end.
 
-Passwords are obtained from the back-end as a PBKDF2 string (see section
+Passwords are obtained from the back-end as a SHA1 hex string (see section
 on Passwords below). Even if you try and store a clear-text password,
 it simply won't work.
 
@@ -127,7 +127,7 @@ The following `auth_opt_` options are supported by the mysql back-end:
 
 The SQL query for looking up a user's password hash is mandatory. The query
 MUST return a single row only (any other number of rows is considered to be
-"user not found"), and it MUST return a single column only with the PBKDF2
+"user not found"), and it MUST return a single column only with the SHA1
 password hash. A single `'%s'` in the query string is replaced by the
 username attempting to access the broker.
 
@@ -180,27 +180,24 @@ auth_opt_anonusername AnonymouS
 ```
 
 Assuming the following database tables:
+(Example username:password pairs in plaintext are `andrew:andrew` and `su1:superuser`)
 
 ```
 mysql> SELECT * FROM users;
-+----+----------+---------------------------------------------------------------------+-------+
-| id | username | pw                                                                  | super |
-+----+----------+---------------------------------------------------------------------+-------+
-|  1 | jjolie   | PBKDF2$sha256$901$x8mf3JIFTUFU9C23$Mid2xcgTrKBfBdye6W/4hE3GKeksu00+ |     0 |
-|  2 | a        | PBKDF2$sha256$901$XPkOwNbd05p5XsUn$1uPtR6hMKBedWE44nqdVg+2NPKvyGst8 |     0 |
-|  3 | su1      | PBKDF2$sha256$901$chEZ4HcSmKtlV0kf$yRh2N62uq6cHoAB6FIrxIN2iihYqNIJp |     1 |
-+----+----------+---------------------------------------------------------------------+-------+
++----+----------+--------------------------------------------+-------+
+| id | username | pw                                         | super |
++----+----------+--------------------------------------------+-------+
+|  1 | andrew   | 02e0a999c50b1f88df7a8f5a04e1b76b35ea6a88   |     0 |
+|  3 | su1      | 8e67bb26b358e2ed20fe552ed6fb832f397a507d   |     1 |
++----+----------+--------------------------------------------+-------+
 
 mysql> SELECT * FROM acls;
 +----+----------+-------------------+----+
 | id | username | topic             | rw |
 +----+----------+-------------------+----+
-|  1 | jjolie   | loc/jjolie        |  1 |
-|  2 | jjolie   | $SYS/something    |  1 |
-|  3 | a        | loc/test/#        |  1 |
-|  4 | a        | $SYS/broker/log/+ |  1 |
+|  1 | andrew   | loc/jjolie        |  1 |
+|  2 | andrew   | $SYS/something    |  1 |
 |  5 | su1      | mega/secret       |  1 |
-|  6 | nop      | mega/secret       |  1 |
 +----+----------+-------------------+----+
 ```
 
@@ -208,30 +205,14 @@ the above SQL queries would enable the following combinations (note the `*` at
 the beginning of the line indicating a _superuser_)
 
 ```
-  jjolie     PBKDF2$sha256$901$x8mf3JIFTUFU9C23$Mid2xcgTrKBfBdye6W/4hE3GKeksu00+
-	loc/a                                    DENY
+  andrew     02e0a999c50b1f88df7a8f5a04e1b76b35ea6a88
 	loc/jjolie                               PERMIT
 	mega/secret                              DENY
-	loc/test                                 DENY
-	$SYS/broker/log/N                        DENY
-  nop        <nil>
-	loc/a                                    DENY
+	$SYS/something                           PERMIT
+* su1        8e67bb26b358e2ed20fe552ed6fb832f397a507d
 	loc/jjolie                               DENY
 	mega/secret                              PERMIT
-	loc/test                                 DENY
-	$SYS/broker/log/N                        DENY
-  a          PBKDF2$sha256$901$XPkOwNbd05p5XsUn$1uPtR6hMKBedWE44nqdVg+2NPKvyGst8
-	loc/a                                    DENY
-	loc/jjolie                               DENY
-	mega/secret                              DENY
-	loc/test                                 PERMIT
-	$SYS/broker/log/N                        PERMIT
-* su1        PBKDF2$sha256$901$chEZ4HcSmKtlV0kf$yRh2N62uq6cHoAB6FIrxIN2iihYqNIJp
-	loc/a                                    PERMIT
-	loc/jjolie                               PERMIT
-	mega/secret                              PERMIT
-	loc/test                                 PERMIT
-	$SYS/broker/log/N                        PERMIT
+	$SYS/something                           DENY
 ```
 
 The `mysql` back-end will re-connect to the MySQL server when the connection has gone away.
@@ -353,7 +334,7 @@ The following `auth_opt_` options are supported by the mysql back-end:
 
 The SQL query for looking up a user's password hash is mandatory. The query
 MUST return a single row only (any other number of rows is considered to be
-"user not found"), and it MUST return a single column only with the PBKDF2
+"user not found"), and it MUST return a single column only with the SHA1
 password hash. A single `'$1'` in the query string is replaced by the
 username attempting to access the broker.
 
@@ -407,24 +388,20 @@ Assuming the following database tables:
 
 ```
 mysql> SELECT * FROM users;
-+----+----------+---------------------------------------------------------------------+-------+
-| id | username | pw                                                                  | super |
-+----+----------+---------------------------------------------------------------------+-------+
-|  1 | jjolie   | PBKDF2$sha256$901$x8mf3JIFTUFU9C23$Mid2xcgTrKBfBdye6W/4hE3GKeksu00+ |     0 |
-|  2 | a        | PBKDF2$sha256$901$XPkOwNbd05p5XsUn$1uPtR6hMKBedWE44nqdVg+2NPKvyGst8 |     0 |
-|  3 | su1      | PBKDF2$sha256$901$chEZ4HcSmKtlV0kf$yRh2N62uq6cHoAB6FIrxIN2iihYqNIJp |     1 |
-+----+----------+---------------------------------------------------------------------+-------+
++----+----------+--------------------------------------------+-------+
+| id | username | pw                                         | super |
++----+----------+--------------------------------------------+-------+
+|  1 | andrew   | 02e0a999c50b1f88df7a8f5a04e1b76b35ea6a88   |     0 |
+|  3 | su1      | 8e67bb26b358e2ed20fe552ed6fb832f397a507d   |     1 |
++----+----------+--------------------------------------------+-------+
 
 mysql> SELECT * FROM acls;
 +----+----------+-------------------+----+
 | id | username | topic             | rw |
 +----+----------+-------------------+----+
-|  1 | jjolie   | loc/jjolie        |  1 |
-|  2 | jjolie   | $SYS/something    |  1 |
-|  3 | a        | loc/test/#        |  1 |
-|  4 | a        | $SYS/broker/log/+ |  1 |
+|  1 | andrew   | loc/jjolie        |  1 |
+|  2 | andrew   | $SYS/something    |  1 |
 |  5 | su1      | mega/secret       |  1 |
-|  6 | nop      | mega/secret       |  1 |
 +----+----------+-------------------+----+
 ```
 
@@ -432,68 +409,19 @@ the above SQL queries would enable the following combinations (note the `*` at
 the beginning of the line indicating a _superuser_)
 
 ```
-  jjolie     PBKDF2$sha256$901$x8mf3JIFTUFU9C23$Mid2xcgTrKBfBdye6W/4hE3GKeksu00+
-  loc/a                                    DENY
-  loc/jjolie                               PERMIT
-  mega/secret                              DENY
-  loc/test                                 DENY
-  $SYS/broker/log/N                        DENY
-  nop        <nil>
-  loc/a                                    DENY
-  loc/jjolie                               DENY
-  mega/secret                              PERMIT
-  loc/test                                 DENY
-  $SYS/broker/log/N                        DENY
-  a          PBKDF2$sha256$901$XPkOwNbd05p5XsUn$1uPtR6hMKBedWE44nqdVg+2NPKvyGst8
-  loc/a                                    DENY
-  loc/jjolie                               DENY
-  mega/secret                              DENY
-  loc/test                                 PERMIT
-  $SYS/broker/log/N                        PERMIT
-* su1        PBKDF2$sha256$901$chEZ4HcSmKtlV0kf$yRh2N62uq6cHoAB6FIrxIN2iihYqNIJp
-  loc/a                                    PERMIT
-  loc/jjolie                               PERMIT
-  mega/secret                              PERMIT
-  loc/test                                 PERMIT
-  $SYS/broker/log/N                        PERMIT
+  andrew     02e0a999c50b1f88df7a8f5a04e1b76b35ea6a88
+	loc/jjolie                               PERMIT
+	mega/secret                              DENY
+	$SYS/something                           PERMIT
+* su1        8e67bb26b358e2ed20fe552ed6fb832f397a507d
+	loc/jjolie                               DENY
+	mega/secret                              PERMIT
+	$SYS/something                           DENY
 ```
 
 ## Passwords
 
-A user's password is stored as a [PBKDF2] hash in the back-end. An example
-"password" is a string with five pieces in it, delimited by `$`, inspired by
-[this][1].
-
-```
-PBKDF2$sha256$901$8ebTR72Pcmjl3cYq$SCVHHfqn9t6Ev9sE6RMTeF3pawvtGqTu
---^--- --^--- -^- ------^--------- -------------^------------------
-  |      |     |        |                       |
-  |      |     |        |                       +-- : hashed password
-  |      |     |        +-------------------------- : salt
-  |      |     +----------------------------------- : iterations
-  |      +----------------------------------------- : hash function
-  +------------------------------------------------ : marker
-```
-
-## Creating a user
-
-A trivial utility to generate hashes is included as `np`. Copy and paste the
-whole string generated into the respective back-end.
-
-```bash
-$ np
-Enter password:
-Re-enter same password:
-PBKDF2$sha256$901$Qh18ysY4wstXoHhk$g8d2aDzbz3rYztvJiO3dsV698jzECxSg
-```
-
-For example, in [Redis]:
-
-```
-$ redis-cli
-> SET n2 PBKDF2$sha256$901$Qh18ysY4wstXoHhk$g8d2aDzbz3rYztvJiO3dsV698jzECxSg
-> QUIT
-```
+A user's password is stored as a [SHA1] hash in the back-end.
 
 ## Configure Mosquitto
 
@@ -596,6 +524,10 @@ Received DISCONNECT from mosqpub/90759-tiggr.ww.
 
 ## Credits
 
+This is based on the [mosquitto-auth-plug](https://github.com/jpmens/mosquitto-auth-plug) by [jpmens](https://github.com/jpmens) 
+with ridiculously little modifications to use the SHA1 password hashing algorithm instead of the original PBKDF2.
+Thanks for the great job.
+
 * Uses `base64.[ch]` (and yes, I know OpenSSL has base64 routines, but no thanks). These files are
 >  Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Hgskolan (Royal Institute of Technology, Stockholm, Sweden).
 * Uses [uthash][2] by Troy D. Hanson.
@@ -603,7 +535,7 @@ Received DISCONNECT from mosqpub/90759-tiggr.ww.
 
  [Mosquitto]: http://mosquitto.org
  [Redis]: http://redis.io
- [pbkdf2]: http://en.wikipedia.org/wiki/PBKDF2
+ [sha1]: hhttp://en.wikipedia.org/wiki/SHA-1
  [1]: https://exyr.org/2011/hashing-passwords/
  [hiredis]: https://github.com/redis/hiredis
  [uthash]: http://troydhanson.github.io/uthash/

@@ -31,6 +31,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <openssl/evp.h>
+#include <openssl/sha.h>
 #include <mosquitto.h>
 #include <mosquitto_plugin.h>
 #include <fnmatch.h>
@@ -368,8 +369,8 @@ int mosquitto_auth_unpwd_check(void *userdata, const char *username, const char 
 {
 	struct userdata *ud = (struct userdata *)userdata;
 	struct backend_p **bep;
-	char *phash = NULL, *backend_name = NULL;
-	int match, authenticated = FALSE, nord;
+	char *shash = NULL, *backend_name = NULL;
+	int diff, authenticated = FALSE, nord;
 
 	if (!username || !*username || !password || !*password)
 		return MOSQ_ERR_AUTH;
@@ -386,17 +387,27 @@ int mosquitto_auth_unpwd_check(void *userdata, const char *username, const char 
 		/*
 		 * The ->getuser() routine can decide to authenticate by setting
 		 * either `authenticated = TRUE' or by returning a pointer to
-		 * the user's PBKDF2 password hash
+		 * the user's SHA-1 password hash
 		 */
 
-		phash = b->getuser(b->conf, username, password, &authenticated);
+		shash = b->getuser(b->conf, username, password, &authenticated);
 		if (authenticated == TRUE) {
 			ud->authentication_be = nord;
 			break;
 		}
-		if (phash != NULL) {
-			match = pbkdf2_check((char *)password, phash);
-			if (match == 1) {
+		if (shash != NULL) {
+
+			unsigned char obuf[20];
+			char converted[40];
+			SHA1((const unsigned char*)password, strlen(password), obuf);
+
+			int i;
+			for(i = 0; i < 20; i++)
+				sprintf(&converted[i*2], "%02x", obuf[i]);
+
+			diff = strcmp((const char*)converted, shash);
+
+			if (diff == 0) {
 				authenticated = TRUE;
 				/* Mark backend index in userdata so we can check
 				 * authorization in this back-end only.
@@ -413,8 +424,8 @@ int mosquitto_auth_unpwd_check(void *userdata, const char *username, const char 
 	_log(DEBUG, "getuser(%s) AUTHENTICATED=%d by %s",
 		username, authenticated, backend_name);
 
-	if (phash != NULL) {
-		free(phash);
+	if (shash != NULL) {
+		free(shash);
 	}
 
 	return (authenticated) ? MOSQ_ERR_SUCCESS : MOSQ_ERR_AUTH;

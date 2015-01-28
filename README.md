@@ -1,5 +1,8 @@
 # mosquitto-auth-plug
 
+This is a fork from the original [mosquitto-auth-plug](https://github.com/jpmens/mosquitto-auth-plug).
+I made it because it better suits my needs, using a SHA-1 password hashing algorithm instead of PBKDF2.
+
 This is a plugin to authenticate and authorize [Mosquitto] users from one
 of several distinct back-ends:
 
